@@ -43,9 +43,25 @@ class Version:
     def __init__(self, ver):
         self.ver = ver
         ver_contents = lib_tool.read_to_keys(ver)
+        print(ver.version_id)
+        print(ver_contents)
         if len(ver_contents) > 1:
             self.prev_ver = ver_contents[-1]
-            self.index = ver_contents[:-1]  # THIS MIGHT BE WRONG
+            self.content = ver_contents[0]  # THIS MIGHT BE WRONG
+            if self.content.type == KeyType.TABLE_INDEX:
+                self.type = INDEX
+            elif (
+                self.content.type == KeyType.TOMBSTONE
+                or self.content.type == KeyType.TOMBSTONE_ALL
+            ):
+                self.type = TOMBSTONE
+            else:
+                self.type = VERSION
+            if len(ver_contents) > 2:
+                print(f"{ver} has more than 2 keys")
+            # print(ver.version_id)
+            # print(self.index[0].type)
+            # print(self.index[0].version_id)
         else:
             self.prev_ver = None
             self.index = ver_contents
@@ -57,28 +73,62 @@ class Version:
         return f"{self.ver} -> {self.index}"
 
 
+VERSION = 0
+TOMBSTONE = 1
+INDEX = 2
+
+
+def key_to_node(key):
+    color = "black"
+    y_index = 100
+    if key.type == KeyType.TABLE_INDEX:
+        color = "blue"
+        y_index = 0
+    elif key.type == KeyType.TOMBSTONE or key.type == KeyType.TOMBSTONE_ALL:
+        color = "red"
+        y_index = 2
+    elif key.type == KeyType.VERSION:
+        color = "green"
+        y_index = 1
+    else:
+        raise ValueError(f"Unknown key type: {key.type} for key: {key}")
+
+    return Node(
+        id=str(key),
+        # label=ver.ver.version_id,
+        color=color,
+        size=10,
+        x=-key.version_id * 50,
+        y=y_index * 50,
+    )
+
+
+def version_to_graph(ver: Version) -> list:
+    nodes = []
+    edges = []
+    nodes.append(key_to_node(ver.ver))
+    if ver.content:
+        nodes.append(key_to_node(ver.content))
+        edges.append(Edge(source=str(ver.content), target=str(ver.ver)))
+
+    if ver.prev_ver:
+        edges.append(Edge(source=str(ver.ver), target=str(ver.prev_ver)))
+    return nodes, edges
+
+
 def get_version_chain_iter(sym: str, num_versions: int):
     vers = lib_tool.find_keys_for_id(KeyType.VERSION, sym)
     vers = [Version(ver) for ver in vers]
-    vers.reverse()
+    vers = vers[::-1]
     # vers to nodes
     nodes = []
     edges = []
 
     x = 0
     for i, ver in enumerate(vers[:num_versions]):
-        nodes.append(
-            Node(
-                id=ver.ver.version_id,
-                label=ver.ver.version_id,
-                size=10,
-                x=i * 50,
-                y=100,
-            )
-        )
-    for ver in vers[:num_versions]:
-        target = ver.prev_ver.version_id if ver.prev_ver else None
-        edges.append(Edge(source=ver.ver.version_id, target=target))
+        ver_nodes, ver_edges = version_to_graph(ver)
+        nodes.extend(ver_nodes)
+        edges.extend(ver_edges)
 
     # return ref[0] if ref else None
     return agraph(nodes=nodes, edges=edges, config=config)
