@@ -1,7 +1,8 @@
 from arcticdb import Arctic
 import streamlit as st
-from arcticdb.toolbox.library_tool import KeyType
+from arcticdb.toolbox.library_tool import KeyType, key_to_props_dict
 from streamlit_agraph import agraph, Node, Edge, Config
+from show_node_details import ShowDetails
 
 from arcticdb.version_store._normalization import FrameData
 from arcticdb_ext.version_store import PythonOutputFrame
@@ -74,6 +75,7 @@ class Version:
 VERSION = 0
 TOMBSTONE = 1
 INDEX = 2
+id_to_key_mapping = {}
 
 
 def key_to_node(key, x_index=None):
@@ -95,6 +97,8 @@ def key_to_node(key, x_index=None):
         raise ValueError(f"Unknown key type: {key.type} for key: {key}")
 
     x_index = x_index if x_index is not None else -key.version_id
+
+    id_to_key_mapping[str(key)] = key
 
     return Node(
         id=str(key),
@@ -214,12 +218,14 @@ config = Config(
 )
 
 # Display the graph
-st.write("Version Chain from all available version keys for the symbol")
-selected_node_iter = get_version_chain_iter(selected_sym, int(selected_versions))
+# st.write("Version Chain from all available version keys for the symbol")
+# selected_node_iter = get_version_chain_iter(selected_sym, int(selected_versions))
 
 st.write("Version Chain from the version ref key for the symbol")
 selected_node_ref = get_version_chain_ref(selected_sym, int(selected_versions))
 
+
+show_details = ShowDetails(st, lib_tool)
 # Handle click events on nodes
-if selected_node_iter:
-    st.write(f"You clicked on {selected_node_iter}")
+if selected_node_ref:
+    show_details.show_key_details(id_to_key_mapping[str(selected_node_ref)])
