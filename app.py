@@ -9,19 +9,6 @@ syms = sorted(lib.list_symbols())
 lib_tool = lib._nvs.library_tool()
 
 
-config = Config(
-    width=800,
-    height=400,
-    directed=True,
-    nodeHighlightBehavior=True,
-    staticGraph=True,
-    physics=False,
-    # **kwargs
-)
-
-# return_value = agraph(nodes=nodes, edges=edges, config=config)
-
-
 class Index:
     def __init__(self, index):
         self.index = index
@@ -124,7 +111,6 @@ def get_version_chain_iter(sym: str, num_versions: int):
     nodes = []
     edges = []
 
-    x = 0
     for i, ver in enumerate(vers[:num_versions]):
         ver_nodes, ver_edges = version_to_graph(ver)
         nodes.extend(ver_nodes)
@@ -146,4 +132,20 @@ selected_versions = st.sidebar.text_input(
 # Display the selected option
 st.write(f"Version Chain for: {selected_sym}")
 
-get_version_chain_iter(selected_sym, int(selected_versions))
+
+config = Config(
+    width=800,
+    height=400,
+    directed=True,
+    nodeHighlightBehavior=True,
+    staticGraphWithDragAndDrop=False,  # Allow graph movement for dynamic interaction
+    staticGraph=True,  # Allows click events
+    physics=False,
+)
+
+# Display the graph
+selected_node = get_version_chain_iter(selected_sym, int(selected_versions))
+
+# Handle click events on nodes
+if selected_node:
+    st.write(f"You clicked on {selected_node}")
