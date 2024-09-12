@@ -20,9 +20,7 @@ def read_to_df(lib_tool, key):
 
 
 ac = Arctic("lmdb://data/arcticdb")
-lib = ac.get_library("vel_test")
-syms = sorted(lib.list_symbols())
-lib_tool = lib._nvs.library_tool()
+libs = ac.list_libraries()
 
 
 class Index:
@@ -96,24 +94,24 @@ def key_to_node(key, x_index=None):
     else:
         raise ValueError(f"Unknown key type: {key.type} for key: {key}")
 
-    x_index = x_index or key.version_id
+    x_index = x_index if x_index is not None else -key.version_id
 
     return Node(
         id=str(key),
-        # label=ver.ver.version_id,
+        label=str(key.version_id) if key.type != KeyType.VERSION_REF else "ref",
         color=color,
-        size=10,
-        x=-x_index * 50,
+        shape="circle",
+        x=x_index * 50,
         y=y_index * 50,
     )
 
 
-def version_to_graph(ver: Version) -> list:
+def version_to_graph(ver: Version, index: int = None) -> list:
     nodes = []
     edges = []
-    nodes.append(key_to_node(ver.ver))
+    nodes.append(key_to_node(ver.ver, index))
     if ver.content:
-        nodes.append(key_to_node(ver.content))
+        nodes.append(key_to_node(ver.content, index))
         edges.append(Edge(source=str(ver.ver), target=str(ver.content)))
 
     if ver.prev_ver:
@@ -123,6 +121,9 @@ def version_to_graph(ver: Version) -> list:
 
 def get_version_chain_iter(sym: str, num_versions: int):
     vers = lib_tool.find_keys_for_id(KeyType.VERSION, sym)
+    # sort the vers first by version then by creation time
+    vers = sorted(vers, key=lambda x: (x.version_id, x.creation_ts))
+
     vers = [Version(ver) for ver in vers]
     vers = vers[::-1]
     # vers to nodes
@@ -130,7 +131,7 @@ def get_version_chain_iter(sym: str, num_versions: int):
     edges = []
 
     for i, ver in enumerate(vers[:num_versions]):
-        ver_nodes, ver_edges = version_to_graph(ver)
+        ver_nodes, ver_edges = version_to_graph(ver, i)
         nodes.extend(ver_nodes)
         edges.extend(ver_edges)
 
@@ -157,6 +158,7 @@ def follow_ref_key(key):
 def get_version_chain_ref(sym: str, num_versions: int):
     ref = lib_tool.find_keys_for_id(KeyType.VERSION_REF, sym)
     keys = read_ref_key(ref[0], sym)
+    ver_key = keys[-1]
     vers = follow_ref_key(keys[-1])
 
     vers = [Version(ver) for ver in vers]
@@ -165,11 +167,11 @@ def get_version_chain_ref(sym: str, num_versions: int):
     nodes = []
     edges = []
 
-    nodes.append(key_to_node(ref[0], vers[0].ver.version_id + 1))
-    edges.append(Edge(source=str(ref[0]), target=str(vers[0].ver)))
+    nodes.append(key_to_node(ref[0], 0))
+    edges.append(Edge(source=str(ref[0]), target=str(ver_key)))
 
     for i, ver in enumerate(vers[:num_versions]):
-        ver_nodes, ver_edges = version_to_graph(ver)
+        ver_nodes, ver_edges = version_to_graph(ver, i + 1)
         nodes.extend(ver_nodes)
         edges.extend(ver_edges)
 
@@ -177,8 +179,21 @@ def get_version_chain_ref(sym: str, num_versions: int):
     return agraph(nodes=nodes, edges=edges, config=config)
 
 
+def select_new_lib(lib_name):
+    lib = ac.get_library(lib_name)
+    lib_tool = lib._nvs.library_tool()
+    syms = sorted(lib._nvs.list_symbols(all_symbols=True))
+    return lib, lib_tool, syms
+
+
 # Set the title of the app
 st.title("Velocity Day Demo")
+
+# Display the sidebar
+selected_lib = st.sidebar.selectbox("Select a library to view:", libs)
+lib = ac.get_library(selected_lib)
+library_tool = lib._nvs.library_tool()
+lib, lib_tool, syms = select_new_lib(selected_lib)
 
 selected_sym = st.sidebar.selectbox("Select a symbol to view:", syms)
 selected_versions = st.sidebar.text_input(
