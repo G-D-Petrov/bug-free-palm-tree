@@ -9,17 +9,6 @@ from arcticdb_ext.version_store import PythonOutputFrame
 import pandas as pd
 
 
-def read_to_df(lib_tool, key):
-    segment = lib_tool.read_to_segment_in_memory(key)
-    stream_desc = lib_tool.read_descriptor(key)
-    field_names = [f.name for f in stream_desc.fields()]
-    frame_data = FrameData.from_cpp(PythonOutputFrame(segment))
-    cols = {}
-    for idx, field_name in enumerate(field_names):
-        cols[field_name] = frame_data.data[idx]
-    return pd.DataFrame(cols, columns=field_names)
-
-
 ac = Arctic("lmdb://data/arcticdb")
 libs = ac.list_libraries()
 
@@ -143,12 +132,6 @@ def get_version_chain_iter(sym: str, num_versions: int):
     return agraph(nodes=nodes, edges=edges, config=config)
 
 
-def read_ref_key(key, sym):
-    df = read_to_df(lib_tool, key)
-    df.index = pd.to_datetime(df.index)
-    return lib_tool.dataframe_to_keys(df, sym)
-
-
 def follow_ref_key(key):
     versions = []
     while key:
@@ -161,7 +144,7 @@ def follow_ref_key(key):
 
 def get_version_chain_ref(sym: str, num_versions: int):
     ref = lib_tool.find_keys_for_id(KeyType.VERSION_REF, sym)
-    keys = read_ref_key(ref[0], sym)
+    keys = lib_tool.read_to_keys(ref[0])
     ver_key = keys[-1]
     vers = follow_ref_key(keys[-1])
 

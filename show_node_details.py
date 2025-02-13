@@ -8,7 +8,9 @@ class ShowDetails:
 
     def show_key_data(self, key):
         key_data = key_to_props_dict(key)
-        key_data["creation_ts"] = pd.Timestamp(key_data["creation_ts"])
+        if "creation_ts" in key_data:
+            # Ref keys don't have a creation_ts
+            key_data["creation_ts"] = pd.Timestamp(key_data["creation_ts"])
         self.st.write("Variant key data:")
         self.st.json(key_data)
 

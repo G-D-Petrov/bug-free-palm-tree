@@ -1,5 +1,5 @@
 altair==5.4.1
-arcticdb==4.5.0
+arcticdb==5.2.3
 attrs==24.2.0
 blinker==1.8.2
 cachetools==5.5.0
@@ -23,7 +23,7 @@ numpy==1.26.4
 packaging==24.1
 pandas==2.2.2
 pillow==10.4.0
-protobuf==5.28.1
+protobuf==5.29
 pyarrow==17.0.0
 pydeck==0.9.1
 Pygments==2.18.0
